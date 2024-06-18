@@ -23,7 +23,7 @@ O relatório é apresentado ao final do teste no terminal e apresenta as seguint
 No terminal digite para clonar o repositório: 
 
 ```
-git clone XXXXX
+git clone https://github.com/psilva1982/stress_test_challange.git
 ```
 
 Crie o build da imagem:
@@ -35,5 +35,5 @@ docker build -t loadtest .
 Execute a imagem: 
 
 ```
-docker run loadtest --url=https://www.google.com --requests=500 --concurrency=10
+docker run loadtest --url=https://www.google.com --requests=1000 --concurrency=10
 ```
