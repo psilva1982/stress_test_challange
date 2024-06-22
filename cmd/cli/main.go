@@ -41,20 +41,23 @@ func loadTest(url string, totalRequests int, concurrency int) {
 
 	startTime := time.Now()
 	var wg sync.WaitGroup
+	wg.Add(concurrency)
+	m := sync.Mutex{}
 
 	successfulRequests := 0
 	statusCodes := make(map[int]int)
 
 	for concurrencyCounter := 0; concurrencyCounter < concurrency; concurrencyCounter++ {
-		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for reqCounter := 0; reqCounter < totalRequests; reqCounter++ {
+				m.Lock()
 				statusCode := makeRequest(url)
 				if statusCode == http.StatusOK {
 					successfulRequests++
 				}
 				statusCodes[statusCode]++
+				m.Unlock()
 			}
 		}()
 		time.Sleep(time.Duration(1000/concurrency) * time.Millisecond)
