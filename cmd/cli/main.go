@@ -41,35 +41,48 @@ func loadTest(url string, totalRequests int, concurrency int) {
 
 	startTime := time.Now()
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	m := sync.Mutex{}
+	requestsPerGoroutine := totalRequests / concurrency
+	statusCodesChan := make(chan int, totalRequests)
+	successfulRequestsChan := make(chan int, totalRequests)
+
+	for concurrencyCounter := 0; concurrencyCounter < concurrency; concurrencyCounter++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for reqCounter := 0; reqCounter < requestsPerGoroutine; reqCounter++ {
+				statusCode := makeRequest(url)
+				statusCodesChan <- statusCode
+				if statusCode == http.StatusOK {
+					successfulRequestsChan <- 1
+				} else {
+					successfulRequestsChan <- 0
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(statusCodesChan)
+		close(successfulRequestsChan)
+	}()
 
 	successfulRequests := 0
 	statusCodes := make(map[int]int)
 
-	for concurrencyCounter := 0; concurrencyCounter < concurrency; concurrencyCounter++ {
-		go func() {
-			defer wg.Done()
-			for reqCounter := 0; reqCounter < totalRequests; reqCounter++ {
-				m.Lock()
-				statusCode := makeRequest(url)
-				if statusCode == http.StatusOK {
-					successfulRequests++
-				}
-				statusCodes[statusCode]++
-				m.Unlock()
-			}
-		}()
-		time.Sleep(time.Duration(1000/concurrency) * time.Millisecond)
+	for statusCode := range statusCodesChan {
+		statusCodes[statusCode]++
 	}
 
-	wg.Wait()
+	for result := range successfulRequestsChan {
+		successfulRequests += result
+	}
 
 	elapsedTime := time.Since(startTime)
 
 	fmt.Println("Relatório de Teste de Carga:")
 	fmt.Printf("Tempo total gasto na execução: %s\n", elapsedTime)
-	fmt.Printf("Quantidade total de requests realizados: %d\n", totalRequests*concurrency)
+	fmt.Printf("Quantidade total de requests realizados: %d\n", totalRequests)
 	fmt.Printf("Quantidade de requests com status HTTP 200: %d\n", successfulRequests)
 	fmt.Println("Distribuição de outros códigos de status HTTP:")
 	for code, count := range statusCodes {
@@ -87,3 +100,4 @@ func makeRequest(url string) int {
 	defer resp.Body.Close()
 	return resp.StatusCode
 }
+
