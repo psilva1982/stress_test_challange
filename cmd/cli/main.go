@@ -42,6 +42,8 @@ func loadTest(url string, totalRequests int, concurrency int) {
 	startTime := time.Now()
 	var wg sync.WaitGroup
 	requestsPerGoroutine := totalRequests / concurrency
+	restDivision := totalRequests % concurrency
+
 	statusCodesChan := make(chan int, totalRequests)
 	successfulRequestsChan := make(chan int, totalRequests)
 
@@ -59,6 +61,18 @@ func loadTest(url string, totalRequests int, concurrency int) {
 				}
 			}
 		}()
+	}
+
+	if restDivision > 0 {
+		for restDivisionCounter := 0; restDivisionCounter < restDivision; restDivisionCounter++ {
+			statusCode := makeRequest(url)
+			statusCodesChan <- statusCode
+			if statusCode == http.StatusOK {
+				successfulRequestsChan <- 1
+			} else {
+				successfulRequestsChan <- 0
+			}
+		}
 	}
 
 	go func() {
@@ -100,4 +114,3 @@ func makeRequest(url string) int {
 	defer resp.Body.Close()
 	return resp.StatusCode
 }
-
